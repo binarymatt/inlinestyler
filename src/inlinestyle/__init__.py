@@ -1,7 +1,8 @@
 from bs4 import BeautifulSoup as Soup
 from soupselect import select
 import cssutils
-import re
+import string
+
 
 class InlineStyler(object):
     def __init__(self, html_string):
@@ -31,10 +32,10 @@ class InlineStyler(object):
 
                     for element in items:
                         styles = item.style.cssText.splitlines()
-                        new_styles = [style.replace(';',u'').replace('"', u"'")
-                                      for style in styles]
+                        new_styles = [style.replace(';', u'').replace(
+                                        '"', u"'") for style in styles]
 
-                        current_styles = element.get('style',u'').split(';')
+                        current_styles = element.get('style', u'').split(';')
                         current_styles.extend(new_styles)
                         current_styles = filter(None, current_styles)
                         element['style'] = u';'.join(current_styles)
@@ -56,7 +57,8 @@ class InlineStyler(object):
 
         return unicode(html)
 
+
 def remove_whitepace(input_string):
-    import string
-    filtered_string = filter(lambda x: x not in string.whitespace, input_string)
+    filtered_string = filter(lambda x: x not in string.whitespace,
+            input_string)
     return filtered_string
