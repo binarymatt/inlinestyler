@@ -46,23 +46,19 @@ class InlineStyler(object):
         self._load_sheet(css_list)
         html = self._apply_rules()
 
+        def has_class_attr(tag):
+            return tag.has_key('class')
+
+        def has_id_attr(tag):
+            return tag.has_key('id')
+
         if remove_class:
-            for element in html.find_all(True, attrs={
-                "class": re.compile(".*")}):
-                new_attrs = []
-                for attr in element.attrs:
-                    if attr[0] != 'class':
-                        new_attrs.append(attr)
-                element.attrs = new_attrs
+            for element in html.find_all(has_class_attr):
+                del element['class']
 
         if remove_id:
-            for element in html.find_all(True, attrs={
-                "id": re.compile(".*")}):
-                new_attrs = []
-                for attr in element.attrs:
-                    if attr[0] != 'id':
-                        new_attrs.append(attr)
-                element.attrs = new_attrs
+            for element in html.find_all(has_id_attr):
+                del element['id']
 
         return unicode(html)
 
