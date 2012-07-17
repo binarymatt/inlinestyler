@@ -9,7 +9,7 @@ class InlineStyler(object):
         self._soup = Soup(self._original_html)
 
     def _strip_styles(self):
-        style_blocks = self._soup.findAll('style')
+        style_blocks = self._soup.find_all('style')
         css_list = []
         for style_block in style_blocks:
             if style_block.contents:
@@ -47,7 +47,7 @@ class InlineStyler(object):
         html = self._apply_rules()
 
         if remove_class:
-            for element in html.findAll(True, attrs={
+            for element in html.find_all(True, attrs={
                 "class": re.compile(".*")}):
                 new_attrs = []
                 for attr in element.attrs:
@@ -56,7 +56,7 @@ class InlineStyler(object):
                 element.attrs = new_attrs
 
         if remove_id:
-            for element in html.findAll(True, attrs={
+            for element in html.find_all(True, attrs={
                 "id": re.compile(".*")}):
                 new_attrs = []
                 for attr in element.attrs:
