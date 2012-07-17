@@ -57,7 +57,11 @@ def select(soup, selector):
     """
     tokens = selector.split()
     current_context = [soup]
-    for token in tokens:
+    for index, token in enumerate(tokens):
+        if tokens[index - 1] == '>':
+            # already found direct descendants in last step
+            continue
+
         m = attribselect_re.match(token)
         if m:
             # Attribute selector
@@ -67,9 +71,10 @@ def select(soup, selector):
             checker = attribute_checker(operator, attribute, value)
             found = []
             for context in current_context:
-                found.extend([el for el in context.findAll(tag) if checker(el)])
+                found.extend([el for el in context.find_all(tag) if checker(el)])
             current_context = found
             continue
+
         if '#' in token:
             # ID selector
             tag, id = token.split('#', 1)
@@ -80,6 +85,7 @@ def select(soup, selector):
                 return [] # No match
             current_context = [el]
             continue
+
         if '.' in token:
             # Class selector
             tag, klass = token.split('.', 1)
@@ -87,28 +93,47 @@ def select(soup, selector):
                 tag = True
             classes = set(klass.split('.'))
             found = []
+
+            def is_in_all_classes(class_tag):
+                if not isinstance(tag, bool):
+                    return class_tag.name == tag \
+                            and class_tag.has_key('class') \
+                            and classes.issubset(class_tag['class'])
+                else:
+                    return class_tag.has_key('class') \
+                            and classes.issubset(class_tag['class'])
+
             for context in current_context:
-                found.extend(
-                    context.findAll(tag,
-                        {'class': lambda attr:
-                             attr and classes.issubset(attr.split())}
-                    )
-                )
+                found.extend(context.find_all(is_in_all_classes))
             current_context = found
             continue
+
         if token == '*':
             # Star selector
             found = []
             for context in current_context:
-                found.extend(context.findAll(True))
+                found.extend(context.find_all(True))
             current_context = found
             continue
+
+        if token == '>':
+            # Child selector
+            tag = tokens[index + 1]
+            if not tag:
+                tag = True
+
+            found = []
+            for context in current_context:
+                found.extend(context.findAll(tag, recursive=False))
+            current_context = found
+            continue
+
         # Here we should just have a regular tag
         if not tag_re.match(token):
             return []
         found = []
         for context in current_context:
-            found.extend(context.findAll(token))
+            found.extend(context.find_all(token))
         current_context = found
     return current_context
 
