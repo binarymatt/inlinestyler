@@ -7,9 +7,9 @@ import string
 class InlineStyler(object):
     _style_attr_bookmark = '__||__'
 
-    def __init__(self, html_string):
+    def __init__(self, html_string, parser="html.parser"):
         self._original_html = html_string
-        self._soup = Soup(self._original_html)
+        self._soup = Soup(self._original_html, parser)
 
     def _strip_styles(self):
         style_blocks = self._soup.find_all('style')
