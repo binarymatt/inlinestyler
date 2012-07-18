@@ -114,3 +114,23 @@ class TestConversion(TestCase):
         styler = InlineStyler('<style></style><div id="test">test</div>')
         new_html = styler.convert(remove_id=True)
         eq_(new_html, '<div>test</div>')
+
+
+    def test_respects_preexisting_style_attrs(self):
+        html = u"""<style>
+                    div { color: red; }
+                    .class1 { color: green; }
+                </style>
+                <div class="class1" style="color: blue">test</div>"""
+        styler = InlineStyler(html)
+        new_html = styler.convert()
+        eq_(new_html.strip(), u'<div class="class1" style="color: red;color: green;color: blue">test</div>')
+
+        html = u"""<style>
+                    div { color: red; border: 1px solid #000; }
+                    .class1 { color: green; border: 2px dashed #CCC; }
+                </style>
+                <div class="class1" style="color: blue; border: 3px dotted #AAA;">test</div>"""
+        styler = InlineStyler(html)
+        new_html = styler.convert()
+        eq_(new_html.strip(), u'<div class="class1" style="color: red;border: 1px solid #000;color: green;border: 2px dashed #CCC;color: blue; border: 3px dotted #AAA;">test</div>')

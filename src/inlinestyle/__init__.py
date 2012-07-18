@@ -5,6 +5,8 @@ import string
 
 
 class InlineStyler(object):
+    _style_attr_bookmark = '__||__'
+
     def __init__(self, html_string):
         self._original_html = html_string
         self._soup = Soup(self._original_html)
@@ -23,7 +25,29 @@ class InlineStyler(object):
         self._sheet = parser.parseString(u''.join(css_list))
         return self._sheet
 
+    def _pre_process_style_attrs(self):
+        '''
+            Adds a "bookmark" to keep track of which inline styles existed
+            before InlineStyler got started. This way those styles will be
+            respected and applied after anything originally included in a
+            <style> tag.
+        '''
+        # find all elements with style tags
+        for tag in self._soup.find_all(lambda tag: tag.has_key('style')):
+            # "bookmark" where the already-inlined styles start
+            tag['style'] = "%s%s" % (self._style_attr_bookmark, tag['style'])
+
+    def _post_process_style_attrs(self):
+        '''
+            Removes the "bookmark" added by _pre_process_style_attrs() so that
+            inline styles are applied in the correct order.
+        '''
+        for tag in self._soup.find_all(lambda tag: tag.has_key('style')):
+            tag['style'] = tag['style'].replace(self._style_attr_bookmark, ";")
+
     def _apply_rules(self):
+        self._pre_process_style_attrs()
+
         for item in self._sheet.cssRules:
             if item.type == item.STYLE_RULE:
                 selectors = item.selectorText
@@ -35,10 +59,26 @@ class InlineStyler(object):
                         new_styles = [style.replace(';', u'').replace(
                                         '"', u"'") for style in styles]
 
-                        current_styles = element.get('style', u'').split(';')
+                        all_styles = element.get('style', u'')
+                        if self._style_attr_bookmark in all_styles:
+                            current_styles, last_styles = all_styles.split(
+                                    self._style_attr_bookmark)
+                        else:
+                            current_styles = all_styles
+                            last_styles = None
+                        current_styles = current_styles.split(';')
+
                         current_styles.extend(new_styles)
                         current_styles = filter(None, current_styles)
-                        element['style'] = u';'.join(current_styles)
+                        current_styles = u';'.join(current_styles)
+
+                        if last_styles:
+                            element['style'] = "%s%s%s" % (current_styles,
+                                    self._style_attr_bookmark, last_styles)
+                        else:
+                            element['style'] = current_styles
+
+        self._post_process_style_attrs()
 
         return self._soup
 
