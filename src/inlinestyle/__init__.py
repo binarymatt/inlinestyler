@@ -43,7 +43,11 @@ class InlineStyler(object):
             inline styles are applied in the correct order.
         '''
         for tag in self._soup.find_all(lambda tag: tag.has_key('style')):
-            tag['style'] = tag['style'].replace(self._style_attr_bookmark, ";")
+            if tag['style'].startswith(self._style_attr_bookmark):
+                tag['style'] = tag['style'].replace(self._style_attr_bookmark, "")
+            else:
+                tag['style'] = tag['style'].replace(self._style_attr_bookmark, ";")
+
 
     def _apply_rules(self):
         self._pre_process_style_attrs()
