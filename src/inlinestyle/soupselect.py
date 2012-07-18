@@ -34,19 +34,24 @@ def attribute_checker(operator, attribute, value=''):
     Takes an operator, attribute and optional value; returns a function that
     will return True for elements that match that combination.
     """
+    def flatten_attr(el_attr):
+        if isinstance(el_attr, list):
+            el_attr = ' '.join(el_attr)
+        return el_attr
+
     return {
-        '=': lambda el: el.get(attribute) == value,
+        '=': lambda el: flatten_attr(el.get(attribute, [''])) == value,
         # attribute includes value as one of a set of space separated tokens
-        '~': lambda el: value in el.get(attribute, '').split(),
+        '~': lambda el: value in el.get(attribute, ['']),
         # attribute starts with value
-        '^': lambda el: el.get(attribute, '').startswith(value),
+        '^': lambda el: flatten_attr(el.get(attribute, [''])).startswith(value),
         # attribute ends with value
-        '$': lambda el: el.get(attribute, '').endswith(value),
+        '$': lambda el: flatten_attr(el.get(attribute, [''])).endswith(value),
         # attribute contains value
-        '*': lambda el: value in el.get(attribute, ''),
+        '*': lambda el: value in flatten_attr(el.get(attribute, [''])),
         # attribute is either exactly value or starts with value-
-        '|': lambda el: el.get(attribute, '') == value \
-            or el.get(attribute, '').startswith('%s-' % value),
+        '|': lambda el: flatten_attr(el.get(attribute, [''])) == value \
+            or flatten_attr(el.get(attribute, [''])).startswith('%s-' % value),
     }.get(operator, lambda el: el.has_key(attribute))
 
 
@@ -143,10 +148,10 @@ def monkeypatch(BeautifulSoupClass=None):
     common import location for BeautifulSoup.
     """
     if not BeautifulSoupClass:
-        from BeautifulSoup import BeautifulSoup as BeautifulSoupClass
+        from bs4 import BeautifulSoup as BeautifulSoupClass
     BeautifulSoupClass.findSelect = select
 
 def unmonkeypatch(BeautifulSoupClass=None):
     if not BeautifulSoupClass:
-        from BeautifulSoup import BeautifulSoup as BeautifulSoupClass
+        from bs4 import BeautifulSoup as BeautifulSoupClass
     delattr(BeautifulSoupClass, 'findSelect')
