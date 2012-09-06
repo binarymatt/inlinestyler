@@ -2,11 +2,10 @@ from bs4 import BeautifulSoup as Soup
 from soupselect import select
 import cssutils
 import string
+import re
 
 
 class InlineStyler(object):
-    _style_attr_bookmark = '__||__'
-
     def __init__(self, html_string, parser="html.parser"):
         self._original_html = html_string
         self._soup = Soup(self._original_html, parser)
@@ -20,42 +19,90 @@ class InlineStyler(object):
             style_block.extract()
         return css_list
 
+    def _selector_specificity_score(self, selector, is_inline=False):
+        '''
+            Gives a CSS selector string a specificity score as detailed by the W3C:
+            http://www.w3.org/TR/CSS2/cascade.html#specificity
+
+            More about CSS order of precedence:
+            http://www.alternategateways.com/tutorials/css/css-101/part-four-the-css-order-of-precedence
+
+            IMPORTANT: this function assumes `selector` is not a comma-delimited
+            list of selectors.
+
+            TODO: support child selector >
+            TODO: support adjacent sibling selector +
+        '''
+        if is_inline:
+            return "1-0-0-0"
+
+        ids = 0
+        attrs = 0
+        elements = 0
+
+        # count ids
+        ids += selector.count("#")
+
+        # count attributes and pseudo-classes
+        attrs += selector.count(".")
+        attrs += selector.count("[")
+
+        # count elements and pseudo-elements
+        elements += selector.count(":")
+        for el in selector.split(" "):
+            if re.match(r'^[A-Za-z]+', el):
+                elements += 1
+
+        return "0-%s-%s-%s" % (ids, attrs, elements)
+
     def _load_sheet(self, css_list):
         parser = cssutils.CSSParser()
         self._sheet = parser.parseString(u''.join(css_list))
         return self._sheet
 
-    def _pre_process_style_attrs(self):
+    def _pre_process_inline_styles(self):
         '''
-            Adds a "bookmark" to keep track of which inline styles existed
-            before InlineStyler got started. This way those styles will be
-            respected and applied after anything originally included in a
-            <style> tag.
+            Put specificity scores on any styles already in `style` attributes
+            so they get top priority.
         '''
-        # find all elements with style tags
-        for tag in self._soup.find_all(lambda tag: tag.has_key('style')):
-            # "bookmark" where the already-inlined styles start
-            tag['style'] = "%s%s" % (self._style_attr_bookmark, tag['style'])
+        for tag in self._soup.find_all(lambda t: t.has_key('style')):
+            styles = tag['style'].split(';')
+            score = self._selector_specificity_score('', is_inline=True)
+            styles = [u"%s(spec:%s)" % (s, score) for s in styles]
+            tag['style'] = ';'.join(styles)
 
-    def _post_process_style_attrs(self):
+    def _sort_inline_properties(self):
         '''
-            Removes the "bookmark" added by _pre_process_style_attrs() so that
-            inline styles are applied in the correct order.
+            Sorts inline rules in `style` attributes by the specificity of
+            their original selector.
         '''
-        for tag in self._soup.find_all(lambda tag: tag.has_key('style')):
-            if tag['style'].startswith(self._style_attr_bookmark):
-                tag['style'] = tag['style'].replace(self._style_attr_bookmark, "")
-            else:
-                tag['style'] = tag['style'].replace(self._style_attr_bookmark, ";")
+        for tag in self._soup.find_all(lambda t: t.has_key('style')):
+            tag_styles = tag['style'].split(';')
 
+            clean_styles = []
+            for style in tag_styles:
+                # break out specificity score
+                scored_re = re.match(r'^(.*?)\(spec\:(.*?)\)$', style)
+                clean_style = scored_re.group(1)
+                score = scored_re.group(2)
+                clean_styles.append((score, clean_style, ))
+
+            # sort styles by specificity score and rejoin
+            sorted_styles = sorted(clean_styles)
+            final_styles = filter(None, [t[1] for t in sorted_styles])
+            tag['style'] = ';'.join(final_styles)
 
     def _apply_rules(self):
-        self._pre_process_style_attrs()
+        '''
+            INLINE ALL THE THINGS
+        '''
+        self._pre_process_inline_styles()
 
         for item in self._sheet.cssRules:
             if item.type == item.STYLE_RULE:
                 selectors = item.selectorText
                 for selector in selectors.split(','):
+                    selector_score = self._selector_specificity_score(selector)
                     items = select(self._soup, selector)
 
                     for element in items:
@@ -64,25 +111,21 @@ class InlineStyler(object):
                                         '"', u"'") for style in styles]
 
                         all_styles = element.get('style', u'')
-                        if self._style_attr_bookmark in all_styles:
-                            current_styles, last_styles = all_styles.split(
-                                    self._style_attr_bookmark)
-                        else:
-                            current_styles = all_styles
-                            last_styles = None
-                        current_styles = current_styles.split(';')
+                        if isinstance(all_styles, unicode):
+                            all_styles = all_styles.split(';')
 
-                        current_styles.extend(new_styles)
-                        current_styles = filter(None, current_styles)
-                        current_styles = u';'.join(current_styles)
+                        all_styles.extend(new_styles)
+                        all_styles = filter(None, all_styles)
 
-                        if last_styles:
-                            element['style'] = "%s%s%s" % (current_styles,
-                                    self._style_attr_bookmark, last_styles)
-                        else:
-                            element['style'] = current_styles
+                        # add specificity score to properties for later sorting
+                        final_styles = []
+                        for s in all_styles:
+                            final_styles.append(u"%s(spec:%s)" % (s,
+                                selector_score))
 
-        self._post_process_style_attrs()
+                        element['style'] = u';'.join(final_styles)
+
+        self._sort_inline_properties()
 
         return self._soup
 
