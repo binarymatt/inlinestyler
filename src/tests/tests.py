@@ -42,21 +42,22 @@ class TestConversion(TestCase):
         styler = InlineStyler(self.html)
         new_html = styler.convert()
         eq_(new_html, """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html lang="en" xml:lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
 <title>untitled</title>
 
 
 </head>
 
-<body class="body" style="background: #000;color: #FFF;font-size: 10px">
+<body class="body" style="font-size: 10px;background: #000;color: #FFF">
     Body text
-    <div class="div" style="font-weight: bold;font-family: 'Courier New';background: #fff;color: #000">
+    <div class="div" style="font-family: 'Courier New';font-weight: bold;background: #fff;color: #000">
         div text
     </div>
-<div style="font-weight: bold;font-family: 'Courier New'">
+<div style="font-family: 'Courier New';font-weight: bold">
         empty div
     </div>
 
@@ -113,3 +114,67 @@ class TestConversion(TestCase):
         styler = InlineStyler('<style></style><div id="test">test</div>')
         new_html = styler.convert(remove_id=True)
         eq_(new_html, '<div>test</div>')
+
+
+    def test_respects_preexisting_style_attrs(self):
+        html = u"""<style>
+                    div { color: red; }
+                    .class1 { color: green; }
+                </style>
+                <div class="class1" style="color: blue">test</div>"""
+        styler = InlineStyler(html)
+        new_html = styler.convert()
+        eq_(new_html.strip(), u'<div class="class1" style="color: red;color: green;color: blue">test</div>')
+
+        html = u"""<style>
+                    div { color: red; border: 1px solid #000; }
+                    .class1 { color: green; border: 2px dashed #CCC; }
+                </style>
+                <div class="class1" style="color: blue; border: 3px dotted #AAA;">test</div>"""
+        styler = InlineStyler(html)
+        new_html = styler.convert()
+        eq_(new_html.strip(), u'<div class="class1" style="border: 1px solid #000;color: red;border: 2px dashed #CCC;color: green; border: 3px dotted #AAA;color: blue">test</div>')
+
+    def test_respects_id_over_class(self):
+        html = u"""<style>
+                #div1 { color: red; }
+                .class1 { color: blue; }
+            </style>
+            <div id="div1" class="class1">some text</div>
+        """
+        styler = InlineStyler(html)
+        result = styler.convert()
+        eq_(result.strip(), u'<div class="class1" id="div1" style="color: blue;color: red">some text</div>')
+
+    def test_respects_class_over_element(self):
+        html = u"""<style>
+                .class1 { color: red; }
+                div { color: orange; }
+            </style>
+            <div class="class1">some text</div>
+        """
+        styler = InlineStyler(html)
+        result = styler.convert()
+        eq_(result.strip(), u'<div class="class1" style="color: orange;color: red">some text</div>')
+
+    def test_respects_pseudo_class_over_element(self):
+        html = u"""<style>
+                [rel="hi"] { color: green; }
+                div { color: yellow; }
+            </style>
+            <div rel="hi">some text</div>
+        """
+        styler = InlineStyler(html)
+        result = styler.convert()
+        eq_(result.strip(), u'<div rel="hi" style="color: yellow;color: green">some text</div>')
+
+    def test_respects_id_over_element(self):
+        html = u"""<style>
+                #div1 { color: blue; }
+                div { color: red; }
+            </style>
+            <div id="div1">some text</div>
+        """
+        styler = InlineStyler(html)
+        result = styler.convert()
+        eq_(result.strip(), u'<div id="div1" style="color: red;color: blue">some text</div>')
