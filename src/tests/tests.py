@@ -1,6 +1,6 @@
 from inlinestyle import InlineStyler, remove_whitepace
 import os.path
-from nose.tools import eq_
+from nose.tools import eq_, ok_
 
 class TestCase(object):
     def setup(self):
@@ -54,10 +54,10 @@ class TestConversion(TestCase):
 
 <body class="body" style="font-size: 10px;background: #000;color: #FFF">
     Body text
-    <div class="div" style="font-family: 'Courier New';font-weight: bold;background: #fff;color: #000">
+    <div class="div" style="font-weight: bold;font-family: 'Courier New';background: #fff;color: #000">
         div text
     </div>
-<div style="font-family: 'Courier New';font-weight: bold">
+<div style="font-weight: bold;font-family: 'Courier New'">
         empty div
     </div>
 
@@ -133,7 +133,7 @@ class TestConversion(TestCase):
                 <div class="class1" style="color: blue; border: 3px dotted #AAA;">test</div>"""
         styler = InlineStyler(html)
         new_html = styler.convert()
-        eq_(new_html.strip(), u'<div class="class1" style="border: 1px solid #000;color: red;border: 2px dashed #CCC;color: green; border: 3px dotted #AAA;color: blue">test</div>')
+        eq_(new_html.strip(), u'<div class="class1" style="color: red;border: 1px solid #000;color: green;border: 2px dashed #CCC;color: blue; border: 3px dotted #AAA">test</div>')
 
     def test_respects_id_over_class(self):
         html = u"""<style>
@@ -178,3 +178,23 @@ class TestConversion(TestCase):
         styler = InlineStyler(html)
         result = styler.convert()
         eq_(result.strip(), u'<div id="div1" style="color: red;color: blue">some text</div>')
+
+    def test_applies_duplicate_rules_in_correct_order(self):
+        html = """
+            <style>
+                h1 {
+                    font-size: 30px;
+                    font-weight: normal;
+                }
+
+                h1 {
+                    font-size: 100%;
+                    font-weight: bold;
+                }
+            </style>
+            <h1>Hey guys.</h1>
+        """
+        styler = InlineStyler(html)
+        result = styler.convert()
+        ok_(result.find('font-size: 30px') < result.find('font-size: 100%'))
+        ok_(result.find('font-weight: normal') < result.find('font-weight: bold'))

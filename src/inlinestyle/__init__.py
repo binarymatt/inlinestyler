@@ -80,11 +80,11 @@ class InlineStyler(object):
             tag_styles = tag['style'].split(';')
 
             clean_styles = []
-            for style in tag_styles:
+            for i, style in enumerate(tag_styles):
                 # break out specificity score
                 scored_re = re.match(r'^(.*?)\(spec\:(.*?)\)$', style)
                 clean_style = scored_re.group(1)
-                score = scored_re.group(2)
+                score = "%s-%s" % (scored_re.group(2), str(i).zfill(3))
                 clean_styles.append((score, clean_style, ))
 
             # sort styles by specificity score and rejoin
@@ -114,16 +114,16 @@ class InlineStyler(object):
                         if isinstance(all_styles, unicode):
                             all_styles = all_styles.split(';')
 
-                        all_styles.extend(new_styles)
-                        all_styles = filter(None, all_styles)
-
                         # add specificity score to properties for later sorting
-                        final_styles = []
-                        for s in all_styles:
-                            final_styles.append(u"%s(spec:%s)" % (s,
+                        scored_styles = []
+                        for s in new_styles:
+                            scored_styles.append(u"%s(spec:%s)" % (s,
                                 selector_score))
 
-                        element['style'] = u';'.join(final_styles)
+                        all_styles.extend(scored_styles)
+                        all_styles = filter(None, all_styles)
+
+                        element['style'] = u';'.join(all_styles)
 
         self._sort_inline_properties()
 
