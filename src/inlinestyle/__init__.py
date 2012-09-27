@@ -114,16 +114,16 @@ class InlineStyler(object):
                         if isinstance(all_styles, unicode):
                             all_styles = all_styles.split(';')
 
-                        all_styles.extend(new_styles)
-                        all_styles = filter(None, all_styles)
-
                         # add specificity score to properties for later sorting
-                        final_styles = []
-                        for s in all_styles:
-                            final_styles.append(u"%s(spec:%s)" % (s,
+                        scored_styles = []
+                        for s in new_styles:
+                            scored_styles.append(u"%s(spec:%s)" % (s,
                                 selector_score))
 
-                        element['style'] = u';'.join(final_styles)
+                        all_styles.extend(scored_styles)
+                        all_styles = filter(None, all_styles)
+
+                        element['style'] = u';'.join(all_styles)
 
         self._sort_inline_properties()
 
