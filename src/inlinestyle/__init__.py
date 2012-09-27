@@ -84,7 +84,7 @@ class InlineStyler(object):
                 # break out specificity score
                 scored_re = re.match(r'^(.*?)\(spec\:(.*?)\)$', style)
                 clean_style = scored_re.group(1)
-                score = "%s-%s" % (scored_re.group(2), i)
+                score = "%s-%s" % (scored_re.group(2), str(i).zfill(3))
                 clean_styles.append((score, clean_style, ))
 
             # sort styles by specificity score and rejoin
