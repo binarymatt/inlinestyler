@@ -9,6 +9,7 @@ class InlineStyler(object):
     def __init__(self, html_string, parser="html.parser"):
         self._original_html = html_string
         self._soup = Soup(self._original_html, parser)
+        self._media_queries = u''
 
     def _strip_styles(self):
         style_blocks = self._soup.find_all('style')
@@ -124,6 +125,8 @@ class InlineStyler(object):
                         all_styles = filter(None, all_styles)
 
                         element['style'] = u';'.join(all_styles)
+            elif item.type == item.MEDIA_RULE:
+                self._media_queries += u'\n%s' % item.cssText
 
         self._sort_inline_properties()
 
@@ -142,7 +145,11 @@ class InlineStyler(object):
             for element in html.find_all(lambda tag: tag.has_key('id')):
                 del element['id']
 
-        return unicode(html)
+        html = unicode(html)
+        if self._media_queries:
+            html = '<style>%s</style>%s' % (self._media_queries, html)
+
+        return html
 
 
 def remove_whitepace(input_string):

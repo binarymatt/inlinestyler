@@ -198,3 +198,26 @@ class TestConversion(TestCase):
         result = styler.convert()
         ok_(result.find('font-size: 30px') < result.find('font-size: 100%'))
         ok_(result.find('font-weight: normal') < result.find('font-weight: bold'))
+
+    def test_leaves_media_queries_in_style_tags(self):
+        html = """
+            <style>
+                @media only screen and (max-width: 480px) {
+                    h1 {
+                        font-size: 18px;
+                    }
+                }
+
+                h1 {
+                    font-size: 20px;
+                }
+            </style>
+
+            <h1>hey</h1>
+        """
+        styler = InlineStyler(html)
+        result = styler.convert()
+        ok_('<style>' in result)
+        ok_('@media only screen and (max-width: 480px)' in result)
+        ok_('font-size: 18px' in result)
+        ok_('<h1 style="font-size: 20px">' in result)
