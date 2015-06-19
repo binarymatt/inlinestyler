@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name="inlinestyle",
-      version="0.3",
+      version="0.4",
       description="convert html style blocks to inline style statements",
       author="Matt George",
       packages=find_packages('src', exclude=['tests']),
