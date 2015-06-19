@@ -73,6 +73,19 @@ class TestConversion(TestCase):
         new_html = styler.convert()
         eq_(new_html, '')
 
+    def test_id_as_second_selector_where_first_selector_doesnt_exist(self):
+        html = """
+            <style>
+                .some-class #some-id {
+                    font-weight: bold;
+                }
+            </style>
+            <div><div id="some-id">foo</div></div>
+        """
+        styler = InlineStyler(html)
+        result = styler.convert()
+        ok_('<div id="some-id">foo</div>' in result)
+
     def test_handles_multiple_classes(self):
         html = """
             <style>
